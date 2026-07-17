@@ -2,6 +2,23 @@
   "version": 1,
   "papers": [
     {
+      "slug": "silk-preventing-latency-spikes-in-lsm-key-value-stores",
+      "title": "SILK: Preventing Latency Spikes in Log-Structured Merge Key-Value Stores",
+      "titleTranslation": "SILK：防止日志结构合并键值存储中的延迟尖峰",
+      "authors": [
+        "Oana Balmau",
+        "Florin Dinu",
+        "Willy Zwaenepoel",
+        "Karan Gupta",
+        "Ravishankar Chandhiramoorthi",
+        "Diego Didona"
+      ],
+      "year": "2019",
+      "venue": "2019 USENIX Annual Technical Conference (USENIX ATC 19)",
+      "path": "papers/silk-preventing-latency-spikes-in-lsm-key-value-stores/paper.json",
+      "updatedAt": "2026-07-17T11:38:37.938835+00:00"
+    },
+    {
       "slug": "wisckey-separating-keys-from-values-in-ssd-conscious-storage",
       "title": "WiscKey: Separating Keys from Values in SSD-Conscious Storage",
       "titleTranslation": "WiscKey：在面向 SSD 的存储中分离键和值",
