@@ -23,6 +23,44 @@
   function put(parent, className, text, lang) { const node = make("div", className, text); if (lang) node.lang = lang; parent.append(node); }
   function inlineMarkdown(text) { return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
   function splitMarkdownUnits(markdown) { const text = String(markdown || "").replace(/\r\n/g, "\n").trim(); return text ? text.split(/\n\s*\n/).filter(unit => unit.trim()) : []; }
+  function plainMarkdownText(text) { return String(text || "").replace(/`([^`]+)`/g, "$1").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/[\\#>]/g, "").replace(/\s+/g, " ").trim(); }
+  function extractMarkdownHeadings(markdown) {
+    const headings = []; let code = false;
+    String(markdown || "").replace(/\r\n/g, "\n").split("\n").forEach(line => {
+      if (/^```/.test(line)) { code = !code; return; }
+      if (code) return;
+      const heading = line.match(/^(#{1,6})\s+(.+)$/);
+      if (heading) headings.push({ level: heading[1].length, title: plainMarkdownText(heading[2]) || heading[2].trim() });
+    });
+    return headings;
+  }
+  function tocTitle(section) { return state.mode === "original" ? section.title : (section.titleTranslation || section.title); }
+  function tocMarkdown(section) { return state.mode === "original" ? section.originalMarkdown : (section.translationMarkdown || section.originalMarkdown); }
+  function tocHeadingId(section, index) { return section.id + "-subheading-" + String(index + 1).padStart(2, "0"); }
+  function buildTocEntries() {
+    const entries = [];
+    state.data.sections.forEach(section => {
+      const baseLevel = Math.min(6, Math.max(1, Number(section.level || 1)));
+      entries.push({ id: section.id, level: baseLevel, title: tocTitle(section) });
+      if (state.data.schemaVersion !== 2) return;
+      extractMarkdownHeadings(tocMarkdown(section)).forEach((heading, index) => {
+        entries.push({ id: tocHeadingId(section, index), level: Math.min(6, baseLevel + Math.max(1, heading.level - 2)), title: heading.title });
+      });
+    });
+    return entries;
+  }
+  function decorateHeadingAnchors(paper) {
+    if (state.data.schemaVersion !== 2) return;
+    state.data.sections.forEach(section => {
+      const sectionNode = document.getElementById(section.id);
+      if (!sectionNode) return;
+      const headings = extractMarkdownHeadings(tocMarkdown(section));
+      const preferred = state.mode === "original" ? ".markdown.original .markdown-heading" : ".markdown.translation .markdown-heading";
+      let nodes = Array.from(sectionNode.querySelectorAll(preferred));
+      if (!nodes.length && state.mode !== "original") nodes = Array.from(sectionNode.querySelectorAll(".markdown.original .markdown-heading"));
+      nodes.slice(0, headings.length).forEach((node, index) => { node.id = tocHeadingId(section, index); });
+    });
+  }
   function renderMath(root) {
     if (!window.renderMathInElement) return;
     try {
@@ -82,7 +120,7 @@
     if (state.customColors) { root.style.setProperty("--reader-original", state.originalColor); root.style.setProperty("--reader-translation", state.translationColor); }
     else { root.style.removeProperty("--reader-original"); root.style.removeProperty("--reader-translation"); }
     document.querySelectorAll("[data-mode]").forEach(button => button.classList.toggle("active", button.dataset.mode === state.mode));
-    syncControls(); persistSettings(); if (render && state.data) { renderHeader(); renderSections(); }
+    syncControls(); persistSettings(); if (render && state.data) { renderHeader(); renderToc(); renderSections(); }
   }
   function syncControls() {
     ["contentWidth", "originalFont", "translationFont", "originalSize", "translationSize", "lineHeight", "paragraphGap", "termsWidth", "theme"].forEach(key => { const input = $("#" + key); if (input) input.value = state[key]; });
@@ -115,10 +153,11 @@
   function renderSections() {
     const paper = $("#paper"); paper.querySelectorAll(".paper-section").forEach(node => node.remove());
     state.data.sections.forEach((section, index) => { const sectionNode = make("section", "paper-section"); sectionNode.id = section.id; const level = Math.min(3, Math.max(1, Number(section.level || 1))); const heading = make("h" + (level + 1), "section-heading section-heading-level-" + level + (state.mode === "translation" ? " section-heading-translation-only" : "")); heading.append(make("span", "section-number", String(index + 1).padStart(2, "0"))); const titles = make("span", "section-titles"); if (state.mode === "translation") titles.append(make("span", "section-translation section-translation-primary", section.titleTranslation || section.title)); else { titles.append(make("span", "section-original", section.title)); if (state.mode !== "original" && section.titleTranslation) titles.append(make("span", "section-translation", section.titleTranslation)); } heading.append(titles); sectionNode.append(heading); if (state.data.schemaVersion === 2) appendMarkdownUnits(sectionNode, section); else (section.blocks || []).forEach(block => sectionNode.append(renderBlock(block))); paper.append(sectionNode); });
+    decorateHeadingAnchors(paper);
     renderMath(paper);
     observeSections();
   }
-  function renderToc() { const toc = $("#toc"); toc.replaceChildren(); state.data.sections.forEach(section => { const link = make("a", "toc-link level-" + (section.level || 1), section.titleTranslation || section.title); link.href = "#" + section.id; link.onclick = closeMobilePanels; toc.append(link); }); }
+  function renderToc() { const toc = $("#toc"); toc.replaceChildren(); buildTocEntries().forEach(entry => { const link = make("a", "toc-link level-" + entry.level, entry.title); link.href = "#" + entry.id; link.onclick = closeMobilePanels; toc.append(link); }); }
   function observeSections() { if (state.observer) state.observer.disconnect(); state.observer = new IntersectionObserver(entries => { const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (visible) { state.currentSection = visible.target.id; if ($("#currentTermsOnly").checked) renderTerms(); } }, { rootMargin: "-15% 0px -70% 0px" }); document.querySelectorAll(".paper-section").forEach(section => state.observer.observe(section)); }
 
   function renderTerms() {
