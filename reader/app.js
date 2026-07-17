@@ -2,7 +2,7 @@
   "use strict";
   const $ = selector => document.querySelector(selector);
   const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
-  const SETTINGS_VERSION = 8;
+  const SETTINGS_VERSION = 9;
   const defaults = { mode: "paragraph", theme: "paper", contentWidth: 820, originalFont: "serif", translationFont: "cjk-serif", originalSize: 18, translationSize: 18, lineHeight: 1.75, paragraphGap: 24, termsWidth: 340, customColors: false, originalColor: "#20231f", translationColor: "#202820" };
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem("paper-reader-settings") || "{}"); } catch { stored = {}; }
@@ -16,11 +16,10 @@
 
   function toast(message) { const node = $("#toast"); node.textContent = message; node.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => node.classList.remove("show"), 2600); }
   function validatePaper(data) {
-    if (!data || ![1, 2].includes(data.schemaVersion) || !data.metadata?.title || !Array.isArray(data.sections) || !data.sections.length) throw new Error("这不是兼容的 paper.json（需要标题和章节）。");
-    data.sections.forEach(section => { if (!section.id || (data.schemaVersion === 1 ? !Array.isArray(section.blocks) : typeof section.originalMarkdown !== "string" || typeof section.translationMarkdown !== "string")) throw new Error("论文 JSON 中存在无效章节。"); });
+    if (!data || data.schemaVersion !== 2 || !data.metadata?.title || !Array.isArray(data.sections) || !data.sections.length) throw new Error("这不是兼容的 paper.json（需要 schemaVersion 2、标题和 sections）。");
+    data.sections.forEach(section => { if (!section.id || typeof section.originalMarkdown !== "string" || typeof section.translationMarkdown !== "string") throw new Error("论文 JSON 中存在无效 section Markdown。"); });
     return data;
   }
-  function put(parent, className, text, lang) { const node = make("div", className, text); if (lang) node.lang = lang; parent.append(node); }
   function inlineMarkdown(text) { return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
   function splitMarkdownUnits(markdown) { const text = String(markdown || "").replace(/\r\n/g, "\n").trim(); return text ? text.split(/\n\s*\n/).filter(unit => unit.trim()) : []; }
   function plainMarkdownText(text) { return String(text || "").replace(/`([^`]+)`/g, "$1").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/[\\#>]/g, "").replace(/\s+/g, " ").trim(); }
@@ -42,7 +41,6 @@
     state.data.sections.forEach(section => {
       const baseLevel = Math.min(6, Math.max(1, Number(section.level || 1)));
       entries.push({ id: section.id, level: baseLevel, title: tocTitle(section) });
-      if (state.data.schemaVersion !== 2) return;
       extractMarkdownHeadings(tocMarkdown(section)).forEach((heading, index) => {
         entries.push({ id: tocHeadingId(section, index), level: Math.min(6, baseLevel + Math.max(1, heading.level - 2)), title: heading.title });
       });
@@ -50,7 +48,6 @@
     return entries;
   }
   function decorateHeadingAnchors(paper) {
-    if (state.data.schemaVersion !== 2) return;
     state.data.sections.forEach(section => {
       const sectionNode = document.getElementById(section.id);
       if (!sectionNode) return;
@@ -88,14 +85,21 @@
     flushParagraph(); flushList(); if (code) flushCode(); return root;
   }
 
+  function unitKind(unit) {
+    const text = String(unit || "").trim();
+    if (/^#{1,6}\s+/m.test(text)) return "heading";
+    if (/^```/.test(text) || /^\$\$/.test(text) || /^\\\[/.test(text)) return "display";
+    if (/^\s*[-*+]\s+/m.test(text)) return "list";
+    return "paragraph";
+  }
   function appendMarkdownUnits(sectionNode, section) {
     const originalUnits = splitMarkdownUnits(section.originalMarkdown), translationUnits = splitMarkdownUnits(section.translationMarkdown);
     if (originalUnits.length !== translationUnits.length) throw new Error(`章节 ${section.title} 的中英 unit 数量不一致（${originalUnits.length}/${translationUnits.length}）。`);
-    const appendSingle = (unit, className, lang) => { const wrapper = make("div", "content unit-content"); wrapper.append(renderMarkdown(unit, className, lang)); sectionNode.append(wrapper); };
+    const appendSingle = (unit, className, lang) => { const wrapper = make("div", "unit-content unit-" + unitKind(unit)); wrapper.append(renderMarkdown(unit, className, lang)); sectionNode.append(wrapper); };
     if (state.mode === "original") originalUnits.forEach(unit => appendSingle(unit, "original", state.data.metadata.language));
     else if (state.mode === "translation") translationUnits.forEach(unit => appendSingle(unit, "translation", state.data.metadata.targetLanguage));
     else originalUnits.forEach((unit, index) => {
-      const wrapper = make("div", "content unit-content"), pair = make("div", "paragraph-pair");
+      const wrapper = make("div", "unit-content unit-" + unitKind(unit)), pair = make("div", "paragraph-pair");
       pair.append(renderMarkdown(unit, "original", state.data.metadata.language), renderMarkdown(translationUnits[index], "translation", state.data.metadata.targetLanguage));
       wrapper.append(pair); sectionNode.append(wrapper);
     });
@@ -143,16 +147,9 @@
     const details = make("div", "meta"); if (meta.doi) details.append(make("span", "chip", "DOI " + meta.doi)); if (meta.source) details.append(make("span", "chip", meta.source)); header.append(details);
     if (meta.notes) header.append(make("div", "note", meta.notes)); paper.replaceChildren(header);
   }
-  function renderBlock(block) {
-    const wrapper = make("div", "content block-" + (block.type || "paragraph")); wrapper.dataset.blockId = block.id;
-    if (state.mode === "original") put(wrapper, "text original", block.original, state.data.metadata.language);
-    else if (state.mode === "translation") put(wrapper, "text translation", block.translation, state.data.metadata.targetLanguage);
-    else { const pair = make("div", "paragraph-pair"); put(pair, "text original", block.original, state.data.metadata.language); put(pair, "text translation", block.translation, state.data.metadata.targetLanguage); wrapper.append(pair); }
-    return wrapper;
-  }
   function renderSections() {
     const paper = $("#paper"); paper.querySelectorAll(".paper-section").forEach(node => node.remove());
-    state.data.sections.forEach((section, index) => { const sectionNode = make("section", "paper-section"); sectionNode.id = section.id; const level = Math.min(3, Math.max(1, Number(section.level || 1))); const heading = make("h" + (level + 1), "section-heading section-heading-level-" + level + (state.mode === "translation" ? " section-heading-translation-only" : "")); heading.append(make("span", "section-number", String(index + 1).padStart(2, "0"))); const titles = make("span", "section-titles"); if (state.mode === "translation") titles.append(make("span", "section-translation section-translation-primary", section.titleTranslation || section.title)); else { titles.append(make("span", "section-original", section.title)); if (state.mode !== "original" && section.titleTranslation) titles.append(make("span", "section-translation", section.titleTranslation)); } heading.append(titles); sectionNode.append(heading); if (state.data.schemaVersion === 2) appendMarkdownUnits(sectionNode, section); else (section.blocks || []).forEach(block => sectionNode.append(renderBlock(block))); paper.append(sectionNode); });
+    state.data.sections.forEach((section, index) => { const sectionNode = make("section", "paper-section"); sectionNode.id = section.id; const level = Math.min(3, Math.max(1, Number(section.level || 1))); const heading = make("h" + (level + 1), "section-heading section-heading-level-" + level + (state.mode === "translation" ? " section-heading-translation-only" : "")); heading.append(make("span", "section-number", String(index + 1).padStart(2, "0"))); const titles = make("span", "section-titles"); if (state.mode === "translation") titles.append(make("span", "section-translation section-translation-primary", section.titleTranslation || section.title)); else { titles.append(make("span", "section-original", section.title)); if (state.mode !== "original" && section.titleTranslation) titles.append(make("span", "section-translation", section.titleTranslation)); } heading.append(titles); sectionNode.append(heading); appendMarkdownUnits(sectionNode, section); paper.append(sectionNode); });
     decorateHeadingAnchors(paper);
     renderMath(paper);
     observeSections();
