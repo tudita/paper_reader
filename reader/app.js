@@ -22,6 +22,23 @@
   }
   function put(parent, className, text, lang) { const node = make("div", className, text); if (lang) node.lang = lang; parent.append(node); }
   function inlineMarkdown(text) { return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
+  function renderMath(root) {
+    if (!window.renderMathInElement) return;
+    try {
+      window.renderMathInElement(root, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "\\[", right: "\\]", display: true },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "$", right: "$", display: false }
+        ],
+        ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+        throwOnError: false
+      });
+    } catch (error) {
+      console.warn("Formula rendering failed", error);
+    }
+  }
   function renderMarkdown(markdown, className, lang) {
     const root = make("div", "markdown " + className); if (lang) root.lang = lang;
     const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n"); let paragraph = [], list = null, code = false, codeLines = [];
@@ -84,6 +101,7 @@
   function renderSections() {
     const paper = $("#paper"); paper.querySelectorAll(".paper-section").forEach(node => node.remove());
     state.data.sections.forEach((section, index) => { const sectionNode = make("section", "paper-section"); sectionNode.id = section.id; const level = Math.min(3, Math.max(1, Number(section.level || 1))); const heading = make("h" + (level + 1), "section-heading section-heading-level-" + level + (state.mode === "translation" ? " section-heading-translation-only" : "")); heading.append(make("span", "section-number", String(index + 1).padStart(2, "0"))); const titles = make("span", "section-titles"); if (state.mode === "translation") titles.append(make("span", "section-translation section-translation-primary", section.titleTranslation || section.title)); else { titles.append(make("span", "section-original", section.title)); if (state.mode !== "original" && section.titleTranslation) titles.append(make("span", "section-translation", section.titleTranslation)); } heading.append(titles); sectionNode.append(heading); if (state.data.schemaVersion === 2) { if (state.mode === "original") sectionNode.append(renderMarkdown(section.originalMarkdown, "original", state.data.metadata.language)); else if (state.mode === "translation") sectionNode.append(renderMarkdown(section.translationMarkdown, "translation", state.data.metadata.targetLanguage)); else { const pair = make("div", "chapter-pair"); pair.append(renderMarkdown(section.originalMarkdown, "original", state.data.metadata.language), renderMarkdown(section.translationMarkdown, "translation", state.data.metadata.targetLanguage)); sectionNode.append(pair); } } else (section.blocks || []).forEach(block => sectionNode.append(renderBlock(block))); paper.append(sectionNode); });
+    renderMath(paper);
     observeSections();
   }
   function renderToc() { const toc = $("#toc"); toc.replaceChildren(); state.data.sections.forEach(section => { const link = make("a", "toc-link level-" + (section.level || 1), section.titleTranslation || section.title); link.href = "#" + section.id; link.onclick = closeMobilePanels; toc.append(link); }); }
