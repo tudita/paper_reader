@@ -10,7 +10,7 @@
   const state = { ...defaults, ...stored, data: null, currentSection: null, termsOpen: false };
   const fontStacks = {
     serif: '"Times New Roman",Times,serif', sans: 'Inter,"Segoe UI",Arial,sans-serif', mono: '"Cascadia Mono",Consolas,monospace',
-    "cjk-serif": '"LXGW WenKai GB Screen","霞鹜文楷 GB 屏幕阅读版",KaiTi,cursive',
+    "cjk-serif": '"LXGW WenKai GB Screen","霞鹜文楷 GB 屏幕阅读版","LXGW WenKai Screen",KaiTi,cursive',
     "cjk-sans": '"Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei",sans-serif', system: 'system-ui,-apple-system,"Segoe UI",sans-serif'
   };
 
