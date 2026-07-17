@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "papers": [
+    {
+      "slug": "wisckey-separating-keys-from-values-in-ssd-conscious-storage",
+      "title": "WiscKey: Separating Keys from Values in SSD-Conscious Storage",
+      "titleTranslation": "WiscKey：在面向 SSD 的存储中分离键和值",
+      "authors": [
+        "Lanyue Lu",
+        "Thanumalayan Sankaranarayana Pillai",
+        "Hariharan Gopalakrishnan",
+        "Andrea C. Arpaci-Dusseau",
+        "Remzi H. Arpaci-Dusseau"
+      ],
+      "year": "2017",
+      "venue": "ACM Transactions on Storage, Vol. 13, No. 1, Article 5",
+      "path": "papers/wisckey-separating-keys-from-values-in-ssd-conscious-storage/paper.json",
+      "updatedAt": "2026-07-17T08:01:18.781325+00:00"
+    }
+  ]
+}

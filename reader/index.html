@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Paper Reader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon mobile-only" id="tocToggle" aria-label="打开目录" hidden>☰</button>
+    <a class="brand" id="brandHome" href="./"><b>P</b><span>Paper Reader</span></a>
+    <div class="modes" id="modeSwitcher" role="group" aria-label="阅读模式" hidden>
+      <button data-mode="original">仅原文</button>
+      <button data-mode="translation">仅译文</button>
+      <button data-mode="paragraph" class="active">段落对照</button>
+      <button data-mode="sentence">逐句对照</button>
+    </div>
+    <div class="actions">
+      <button class="toolbar-action" id="libraryButton" hidden><span class="action-glyph">←</span><span class="action-label">论文库</span></button>
+      <button class="toolbar-action" id="openFileButton"><span class="action-glyph">＋</span><span class="action-label">导入</span></button>
+      <button class="toolbar-action" id="settingsToggle" aria-expanded="false" hidden><span class="action-glyph type-glyph">Aa</span><span class="action-label">排版</span></button>
+      <button class="toolbar-action" id="termsToggle" hidden><span class="action-glyph">术</span><span class="action-label">术语</span></button>
+    </div>
+    <input id="fileInput" type="file" accept="application/json,.json" hidden>
+  </header>
+
+  <main class="welcome" id="welcome">
+    <section class="welcome-copy">
+      <span class="eyebrow">PAPER READER</span>
+      <h1>论文，值得被好好阅读。</h1>
+      <p>双语对照、术语注释与个性化排版，安静地组织在同一个阅读空间。</p>
+    </section>
+    <section class="library-section">
+      <div class="section-row">
+        <div><span class="eyebrow">LIBRARY</span><h2>我的论文</h2></div>
+        <div class="library-tools"><span class="library-status" id="libraryStatus"></span><button class="secondary" id="welcomeOpen">导入 JSON</button></div>
+      </div>
+      <div class="library-grid" id="libraryGrid"></div>
+    </section>
+    <section class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="拖入论文 JSON">
+      <div class="drop-icon">↓</div><strong>松开以导入论文 JSON</strong>
+    </section>
+  </main>
+
+  <div class="reader-shell" id="readerShell" hidden>
+    <aside class="toc-panel" id="tocPanel"><div class="panel-label">CONTENTS</div><nav id="toc"></nav></aside>
+    <main class="paper" id="paper" tabindex="-1"></main>
+    <aside class="terms-panel" id="termsPanel" aria-hidden="true">
+      <div class="terms-head"><div><span class="eyebrow">GLOSSARY</span><h2>专业名词</h2></div><button class="icon" id="termsClose" aria-label="关闭术语栏">×</button></div>
+      <label class="search"><span>⌕</span><input id="termSearch" type="search" placeholder="搜索术语"></label>
+      <label class="checkbox-row"><input id="currentTermsOnly" type="checkbox"><span>仅显示当前章节术语</span></label>
+      <div id="termsList"></div>
+    </aside>
+  </div>
+
+  <aside class="settings-panel" id="settingsPanel" aria-hidden="true">
+    <div class="settings-head"><div><span class="eyebrow">READING</span><h2>阅读设置</h2></div><button class="icon" id="settingsClose" aria-label="关闭设置">×</button></div>
+    <div class="settings-section-title">版面</div>
+    <label class="setting"><span>正文宽度 <output id="contentWidthOut"></output></span><input id="contentWidth" type="range" min="600" max="1100" step="20"></label>
+    <label class="setting"><span>行高 <output id="lineHeightOut"></output></span><input id="lineHeight" type="range" min="1.4" max="2.2" step="0.05"></label>
+    <label class="setting"><span>段落间距 <output id="paragraphGapOut"></output></span><input id="paragraphGap" type="range" min="12" max="48" step="2"></label>
+    <div class="settings-section-title">字体与颜色</div>
+    <label class="setting"><span>原文字体</span><select id="originalFont"><option value="serif">Times New Roman</option><option value="sans">现代无衬线</option><option value="mono">等宽字体</option></select></label>
+    <label class="setting"><span>译文字体</span><select id="translationFont"><option value="cjk-serif">LXGW WenKai GB Screen</option><option value="cjk-sans">中文无衬线</option><option value="system">系统字体</option></select></label>
+    <label class="setting"><span>原文字号 <output id="originalSizeOut"></output></span><input id="originalSize" type="range" min="15" max="26" step="1"></label>
+    <label class="setting"><span>译文字号 <output id="translationSizeOut"></output></span><input id="translationSize" type="range" min="15" max="26" step="1"></label>
+    <label class="checkbox-row color-toggle"><input id="customColors" type="checkbox"><span>自定义正文颜色</span></label>
+    <div class="color-controls" id="colorControls"><label><span>原文</span><input id="originalColor" type="color" aria-label="原文颜色"></label><label><span>译文</span><input id="translationColor" type="color" aria-label="译文颜色"></label></div>
+    <div class="font-preview" aria-label="字体与颜色预览"><div class="preview-original">WiscKey · Storage Systems 123</div><div class="preview-translation">霞鹜文楷 · 中文字体预览</div></div>
+    <div class="settings-section-title">界面</div>
+    <label class="setting"><span>术语栏宽度 <output id="termsWidthOut"></output></span><input id="termsWidth" type="range" min="280" max="480" step="10"></label>
+    <label class="setting"><span>主题</span><select id="theme"><option value="light">明亮</option><option value="paper">米色</option><option value="dark">深色</option></select></label>
+    <button class="secondary full" id="resetSettings">恢复默认设置</button>
+  </aside>
+
+  <div class="mobile-scrim" id="mobileScrim"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
