@@ -22,6 +22,7 @@
   }
   function put(parent, className, text, lang) { const node = make("div", className, text); if (lang) node.lang = lang; parent.append(node); }
   function inlineMarkdown(text) { return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
+  function splitMarkdownUnits(markdown) { const text = String(markdown || "").replace(/\r\n/g, "\n").trim(); return text ? text.split(/\n\s*\n/).filter(unit => unit.trim()) : []; }
   function renderMath(root) {
     if (!window.renderMathInElement) return;
     try {
@@ -47,6 +48,19 @@
     const flushCode = () => { if (!codeLines.length) return; const pre = make("pre"), codeNode = make("code", "", codeLines.join("\n")); pre.append(codeNode); root.append(pre); codeLines = []; };
     lines.forEach(line => { if (/^```/.test(line)) { flushParagraph(); flushList(); if (code) flushCode(); code = !code; return; } if (code) { codeLines.push(line); return; } const heading = line.match(/^(#{1,6})\s+(.+)$/); if (heading) { flushParagraph(); flushList(); const level = heading[1].length; const node = make("h" + Math.min(6, level + 2), "markdown-heading markdown-heading-level-" + level); node.innerHTML = inlineMarkdown(heading[2]); root.append(node); return; } const item = line.match(/^\s*[-*+]\s+(.+)$/); if (item) { flushParagraph(); if (!list) list = make("ul"); const li = make("li"); li.innerHTML = inlineMarkdown(item[1]); list.append(li); return; } if (!line.trim()) { flushParagraph(); flushList(); return; } paragraph.push(line.trim()); });
     flushParagraph(); flushList(); if (code) flushCode(); return root;
+  }
+
+  function appendMarkdownUnits(sectionNode, section) {
+    const originalUnits = splitMarkdownUnits(section.originalMarkdown), translationUnits = splitMarkdownUnits(section.translationMarkdown);
+    if (originalUnits.length !== translationUnits.length) throw new Error(`章节 ${section.title} 的中英 unit 数量不一致（${originalUnits.length}/${translationUnits.length}）。`);
+    const appendSingle = (unit, className, lang) => { const wrapper = make("div", "content unit-content"); wrapper.append(renderMarkdown(unit, className, lang)); sectionNode.append(wrapper); };
+    if (state.mode === "original") originalUnits.forEach(unit => appendSingle(unit, "original", state.data.metadata.language));
+    else if (state.mode === "translation") translationUnits.forEach(unit => appendSingle(unit, "translation", state.data.metadata.targetLanguage));
+    else originalUnits.forEach((unit, index) => {
+      const wrapper = make("div", "content unit-content"), pair = make("div", "paragraph-pair");
+      pair.append(renderMarkdown(unit, "original", state.data.metadata.language), renderMarkdown(translationUnits[index], "translation", state.data.metadata.targetLanguage));
+      wrapper.append(pair); sectionNode.append(wrapper);
+    });
   }
 
   function persistSettings() {
@@ -100,7 +114,7 @@
   }
   function renderSections() {
     const paper = $("#paper"); paper.querySelectorAll(".paper-section").forEach(node => node.remove());
-    state.data.sections.forEach((section, index) => { const sectionNode = make("section", "paper-section"); sectionNode.id = section.id; const level = Math.min(3, Math.max(1, Number(section.level || 1))); const heading = make("h" + (level + 1), "section-heading section-heading-level-" + level + (state.mode === "translation" ? " section-heading-translation-only" : "")); heading.append(make("span", "section-number", String(index + 1).padStart(2, "0"))); const titles = make("span", "section-titles"); if (state.mode === "translation") titles.append(make("span", "section-translation section-translation-primary", section.titleTranslation || section.title)); else { titles.append(make("span", "section-original", section.title)); if (state.mode !== "original" && section.titleTranslation) titles.append(make("span", "section-translation", section.titleTranslation)); } heading.append(titles); sectionNode.append(heading); if (state.data.schemaVersion === 2) { if (state.mode === "original") sectionNode.append(renderMarkdown(section.originalMarkdown, "original", state.data.metadata.language)); else if (state.mode === "translation") sectionNode.append(renderMarkdown(section.translationMarkdown, "translation", state.data.metadata.targetLanguage)); else { const pair = make("div", "chapter-pair"); pair.append(renderMarkdown(section.originalMarkdown, "original", state.data.metadata.language), renderMarkdown(section.translationMarkdown, "translation", state.data.metadata.targetLanguage)); sectionNode.append(pair); } } else (section.blocks || []).forEach(block => sectionNode.append(renderBlock(block))); paper.append(sectionNode); });
+    state.data.sections.forEach((section, index) => { const sectionNode = make("section", "paper-section"); sectionNode.id = section.id; const level = Math.min(3, Math.max(1, Number(section.level || 1))); const heading = make("h" + (level + 1), "section-heading section-heading-level-" + level + (state.mode === "translation" ? " section-heading-translation-only" : "")); heading.append(make("span", "section-number", String(index + 1).padStart(2, "0"))); const titles = make("span", "section-titles"); if (state.mode === "translation") titles.append(make("span", "section-translation section-translation-primary", section.titleTranslation || section.title)); else { titles.append(make("span", "section-original", section.title)); if (state.mode !== "original" && section.titleTranslation) titles.append(make("span", "section-translation", section.titleTranslation)); } heading.append(titles); sectionNode.append(heading); if (state.data.schemaVersion === 2) appendMarkdownUnits(sectionNode, section); else (section.blocks || []).forEach(block => sectionNode.append(renderBlock(block))); paper.append(sectionNode); });
     renderMath(paper);
     observeSections();
   }
