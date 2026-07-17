@@ -16,6 +16,20 @@
       "venue": "ACM Transactions on Storage, Vol. 13, No. 1, Article 5",
       "path": "papers/wisckey-separating-keys-from-values-in-ssd-conscious-storage/paper.json",
       "updatedAt": "2026-07-17T09:32:14.954119+00:00"
+    },
+    {
+      "slug": "monkey-optimal-navigable-key-value-store",
+      "title": "Monkey: Optimal Navigable Key-Value Store",
+      "titleTranslation": "Monkey：最优可导航键值存储",
+      "authors": [
+        "Niv Dayan",
+        "Manos Athanassoulis",
+        "Stratos Idreos"
+      ],
+      "year": "2017",
+      "venue": "SIGMOD '17",
+      "path": "papers/monkey-optimal-navigable-key-value-store/paper.json",
+      "updatedAt": "2026-07-17T10:35:12.049854+00:00"
     }
   ]
 }
