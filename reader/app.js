@@ -2,7 +2,7 @@
   "use strict";
   const $ = selector => document.querySelector(selector);
   const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
-  const SETTINGS_VERSION = 5;
+  const SETTINGS_VERSION = 6;
   const defaults = { mode: "paragraph", theme: "paper", contentWidth: 820, originalFont: "serif", translationFont: "cjk-serif", originalSize: 18, translationSize: 18, lineHeight: 1.75, paragraphGap: 24, termsWidth: 340, customColors: false, originalColor: "#20231f", translationColor: "#202820" };
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem("paper-reader-settings") || "{}"); } catch { stored = {}; }
@@ -10,7 +10,7 @@
   const state = { ...defaults, ...stored, data: null, currentSection: null, termsOpen: false };
   const fontStacks = {
     serif: '"Times New Roman",Times,serif', sans: 'Inter,"Segoe UI",Arial,sans-serif', mono: '"Cascadia Mono",Consolas,monospace',
-    "cjk-serif": '"LXGW WenKai GB Screen","霞鹜文楷 GB 屏幕阅读版","LXGW WenKai Screen",KaiTi,cursive',
+    "cjk-serif": '"LXGW WenKai Screen","LXGW WenKai GB Screen","霞鹜文楷 GB 屏幕阅读版",KaiTi,cursive',
     "cjk-sans": '"Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei",sans-serif', system: 'system-ui,-apple-system,"Segoe UI",sans-serif'
   };
 
