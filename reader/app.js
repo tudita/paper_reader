@@ -7,7 +7,7 @@
   let stored = {};
   try { stored = JSON.parse(localStorage.getItem("paper-reader-settings") || "{}"); } catch { stored = {}; }
   if (stored.settingsVersion !== SETTINGS_VERSION) stored = { ...stored, originalFont: defaults.originalFont, translationFont: defaults.translationFont, translationSize: defaults.translationSize, lineHeight: defaults.lineHeight, paragraphGap: defaults.paragraphGap, customColors: false, originalColor: defaults.originalColor, translationColor: defaults.translationColor, settingsVersion: SETTINGS_VERSION };
-  const state = { ...defaults, ...stored, data: null, currentSection: null, termsOpen: false };
+  const state = { ...defaults, ...stored, data: null, currentSection: null, termsOpen: false, libraryPapers: [] };
   const fontStacks = {
     serif: '"Times New Roman",Times,serif', sans: 'Inter,"Segoe UI",Arial,sans-serif', mono: '"Cascadia Mono",Consolas,monospace',
     "cjk-serif": '"PaperReader LXGW WenKai GB Screen","LXGW WenKai GB Screen","霞鹜文楷 GB 屏幕阅读版","LXGW WenKai Screen",KaiTi,cursive',
@@ -180,14 +180,25 @@
   }
   async function loadUrl(url) { try { const response = await fetch(url); if (!response.ok) throw new Error("HTTP " + response.status); setPaper(await response.json()); } catch (error) { toast("无法加载论文 JSON：" + error.message); } }
   async function readFile(file) { if (!file) return; try { setPaper(JSON.parse(await file.text())); toast("已打开 " + file.name); } catch (error) { toast(error.message || "无法读取 JSON"); } }
+  function normalizeLibraryTitle(title) { return String(title || "").normalize("NFKD").toLocaleLowerCase("en"); }
+  function renderLibrary() {
+    const status = $("#libraryStatus"), grid = $("#libraryGrid"), query = $("#librarySearch").value.trim();
+    const needle = normalizeLibraryTitle(query);
+    const papers = state.libraryPapers.filter(item => normalizeLibraryTitle(item.title).includes(needle));
+    grid.replaceChildren();
+    status.textContent = query ? papers.length + " / " + state.libraryPapers.length + " 篇论文" : state.libraryPapers.length + " 篇论文";
+    if (!papers.length && query) { grid.append(make("div", "library-empty", "没有匹配该英文标题的论文")); return; }
+    papers.forEach(item => { const card = make("button", "library-card"); card.append(make("span", "library-year", item.year || "PAPER"), make("strong", "", item.titleTranslation || item.title), make("span", "library-original", item.title)); card.onclick = () => { const path = "../" + item.path; history.pushState({ paper: path }, "", "?paper=" + encodeURIComponent(path)); loadUrl(path); }; grid.append(card); });
+  }
   async function loadLibrary() {
     const status = $("#libraryStatus"), grid = $("#libraryGrid"); grid.replaceChildren();
     if (location.protocol === "file:") { status.textContent = "本地文件模式：请打开或拖入 JSON"; return; }
-    try { const response = await fetch("../library.json", { cache: "no-store" }); if (!response.ok) throw new Error(); const library = await response.json(); const papers = library.papers || []; status.textContent = papers.length + " 篇论文"; papers.forEach(item => { const card = make("button", "library-card"); card.append(make("span", "library-year", item.year || "PAPER"), make("strong", "", item.titleTranslation || item.title), make("span", "library-original", item.title)); card.onclick = () => { const path = "../" + item.path; history.pushState({ paper: path }, "", "?paper=" + encodeURIComponent(path)); loadUrl(path); }; grid.append(card); }); } catch { status.textContent = "论文库尚未建立"; }
+    try { const response = await fetch("../library.json", { cache: "no-store" }); if (!response.ok) throw new Error(); const library = await response.json(); state.libraryPapers = library.papers || []; renderLibrary(); } catch { state.libraryPapers = []; status.textContent = "论文库尚未建立"; }
   }
 
   document.querySelectorAll("[data-mode]").forEach(button => button.onclick = () => { state.mode = button.dataset.mode; applySettings(true); });
   $("#libraryButton").onclick = () => showLibrary(true); $("#brandHome").onclick = event => { event.preventDefault(); showLibrary(true); };
+  $("#librarySearch").oninput = renderLibrary;
   $("#openFileButton").onclick = $("#welcomeOpen").onclick = () => $("#fileInput").click(); $("#fileInput").onchange = event => readFile(event.target.files[0]);
   $("#dropZone").onclick = () => $("#fileInput").click(); $("#dropZone").onkeydown = event => { if (event.key === "Enter" || event.key === " ") $("#fileInput").click(); };
   document.addEventListener("dragover", event => { event.preventDefault(); $("#dropZone").classList.add("dragging"); }); document.addEventListener("dragleave", () => $("#dropZone").classList.remove("dragging")); document.addEventListener("drop", event => { event.preventDefault(); $("#dropZone").classList.remove("dragging"); readFile(event.dataTransfer.files[0]); });

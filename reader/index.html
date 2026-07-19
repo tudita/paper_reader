@@ -7,7 +7,7 @@
   <title>Paper Reader</title>
   <link rel="stylesheet" href="fonts/lxgwwenkaigbscreen.css?v=7">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
   <header class="topbar">
@@ -36,7 +36,11 @@
     <section class="library-section">
       <div class="section-row">
         <div><span class="eyebrow">LIBRARY</span><h2>我的论文</h2></div>
-        <div class="library-tools"><span class="library-status" id="libraryStatus"></span><button class="secondary" id="welcomeOpen">导入 JSON</button></div>
+        <div class="library-tools">
+          <label class="library-search"><span aria-hidden="true">⌕</span><input id="librarySearch" type="search" placeholder="按英文标题搜索" autocomplete="off" aria-label="按英文标题搜索论文"></label>
+          <span class="library-status" id="libraryStatus"></span>
+          <button class="secondary" id="welcomeOpen">导入 JSON</button>
+        </div>
       </div>
       <div class="library-grid" id="libraryGrid"></div>
     </section>
@@ -80,6 +84,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"></script>
-  <script defer src="app.js?v=12"></script>
+  <script defer src="app.js?v=13"></script>
 </body>
 </html>
