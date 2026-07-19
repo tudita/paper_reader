@@ -1,0 +1,6 @@
+_site/
+library.json
+serve_reader.py
+start-reader.cmd
+__pycache__/
+*.pyc
