@@ -138,6 +138,10 @@
     if (/^\s*[-*+]\s+/m.test(text)) return "list";
     return "paragraph";
   }
+  function isDisplayMathUnit(unit) {
+    const text = String(unit || "").trim();
+    return /^\$\$/.test(text) || /^\\\[/.test(text);
+  }
   function appendMarkdownUnits(sectionNode, section) {
     const originalUnits = splitMarkdownUnits(section.originalMarkdown), translationUnits = splitMarkdownUnits(section.translationMarkdown);
     if (originalUnits.length !== translationUnits.length) throw new Error(`章节 ${section.title} 的中英 unit 数量不一致（${originalUnits.length}/${translationUnits.length}）。`);
@@ -145,7 +149,9 @@
     if (state.mode === "original") originalUnits.forEach(unit => appendSingle(unit, "original", state.data.metadata.language));
     else if (state.mode === "translation") translationUnits.forEach(unit => appendSingle(unit, "translation", state.data.metadata.targetLanguage));
     else originalUnits.forEach((unit, index) => {
-      const wrapper = make("div", "unit-content unit-" + unitKind(unit)), pair = make("div", "paragraph-pair");
+      const wrapper = make("div", "unit-content unit-" + unitKind(unit));
+      if (isDisplayMathUnit(unit)) { wrapper.append(renderMarkdown(unit, "original", state.data.metadata.language)); sectionNode.append(wrapper); return; }
+      const pair = make("div", "paragraph-pair");
       pair.append(renderMarkdown(unit, "original", state.data.metadata.language), renderMarkdown(translationUnits[index], "translation", state.data.metadata.targetLanguage));
       wrapper.append(pair); sectionNode.append(wrapper);
     });
