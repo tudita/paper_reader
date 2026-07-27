@@ -20,7 +20,7 @@
     data.sections.forEach(section => { if (!section.id || typeof section.originalMarkdown !== "string" || typeof section.translationMarkdown !== "string") throw new Error("论文 JSON 中存在无效 section Markdown。"); });
     return data;
   }
-  function inlineMarkdown(text) { return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
+  function inlineMarkdown(text) { return String(text || "").replace(/&nbsp;/gi, "\u00a0").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
   function splitMarkdownUnits(markdown) { const text = String(markdown || "").replace(/\r\n/g, "\n").trim(); return text ? text.split(/\n\s*\n/).filter(unit => unit.trim()) : []; }
   function plainMarkdownText(text) { return String(text || "").replace(/`([^`]+)`/g, "$1").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/[\\#>]/g, "").replace(/\s+/g, " ").trim(); }
   function extractMarkdownHeadings(markdown) {
@@ -103,9 +103,9 @@
   }
   function renderMarkdown(markdown, className, lang) {
     const root = make("div", "markdown " + className); if (lang) root.lang = lang;
-    const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n"); let paragraph = [], list = null, code = false, codeLines = [];
+    const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n"); let paragraph = [], list = null, listTag = "", code = false, codeLines = [];
     const flushParagraph = () => { if (!paragraph.length) return; const node = make("p"); node.innerHTML = inlineMarkdown(paragraph.join(" ")); root.append(node); paragraph = []; };
-    const flushList = () => { if (list) { root.append(list); list = null; } };
+    const flushList = () => { if (list) { root.append(list); list = null; listTag = ""; } };
     const flushCode = () => { if (!codeLines.length) return; const pre = make("pre"), codeNode = make("code", "", codeLines.join("\n")); pre.append(codeNode); root.append(pre); codeLines = []; };
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
@@ -122,8 +122,12 @@
       }
       const heading = line.match(/^(#{1,6})\s+(.+)$/);
       if (heading) { flushParagraph(); flushList(); const level = heading[1].length; const node = make("h" + Math.min(6, level + 2), "markdown-heading markdown-heading-level-" + level); node.innerHTML = inlineMarkdown(heading[2]); root.append(node); continue; }
-      const item = line.match(/^\s*[-*+]\s+(.+)$/);
-      if (item) { flushParagraph(); if (!list) list = make("ul"); const li = make("li"); li.innerHTML = inlineMarkdown(item[1]); list.append(li); continue; }
+      const unordered = line.match(/^\s*[-*+]\s+(.+)$/), ordered = line.match(/^\s*(\d+)\.\s+(.+)$/);
+      if (unordered || ordered) {
+        const tag = ordered ? "ol" : "ul", text = ordered ? ordered[2] : unordered[1];
+        flushParagraph(); if (!list || listTag !== tag) { flushList(); list = make(tag); listTag = tag; if (ordered && ordered[1] !== "1") list.start = ordered[1]; }
+        const li = make("li"); li.innerHTML = inlineMarkdown(text); list.append(li); continue;
+      }
       if (!line.trim()) { flushParagraph(); flushList(); continue; }
       paragraph.push(line.trim());
     }
@@ -135,7 +139,7 @@
     if (/^#{1,6}\s+/m.test(text)) return "heading";
     if (/^```/.test(text) || /^\$\$/.test(text) || /^\\\[/.test(text)) return "display";
     if (isTableStart(text.split("\n"), 0)) return "table";
-    if (/^\s*[-*+]\s+/m.test(text)) return "list";
+    if (/^\s*(?:[-*+]|\d+\.)\s+/m.test(text)) return "list";
     return "paragraph";
   }
   function isDisplayMathUnit(unit) {
