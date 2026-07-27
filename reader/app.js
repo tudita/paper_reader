@@ -20,7 +20,16 @@
     data.sections.forEach(section => { if (!section.id || typeof section.originalMarkdown !== "string" || typeof section.translationMarkdown !== "string") throw new Error("论文 JSON 中存在无效 section Markdown。"); });
     return data;
   }
-  function inlineMarkdown(text) { return String(text || "").replace(/&nbsp;/gi, "\u00a0").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>"); }
+  function inlineMarkdown(text) {
+    const protectedSpans = [];
+    const protect = value => { const token = "\u0000" + protectedSpans.length + "\u0000"; protectedSpans.push(value); return token; };
+    let html = String(text || "").replace(/&nbsp;/gi, "\u00a0").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(/`([^`]+)`/g, (_, code) => protect("<code>" + code + "</code>"));
+    html = html.replace(/\$([^$\n]+)\$/g, match => protect(match));
+    html = html.replace(/\\\((.+?)\\\)/g, match => protect(match));
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    return html.replace(/\u0000(\d+)\u0000/g, (_, index) => protectedSpans[Number(index)] || "");
+  }
   function splitMarkdownUnits(markdown) { const text = String(markdown || "").replace(/\r\n/g, "\n").trim(); return text ? text.split(/\n\s*\n/).filter(unit => unit.trim()) : []; }
   function plainMarkdownText(text) { return String(text || "").replace(/`([^`]+)`/g, "$1").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/[\\#>]/g, "").replace(/\s+/g, " ").trim(); }
   function extractMarkdownHeadings(markdown) {
